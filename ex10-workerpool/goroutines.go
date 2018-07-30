@@ -1,32 +1,46 @@
 package goroutines
 
 import (
-	"strings"
+	"bufio"
+	"fmt"
+	"os"
+	"sync"
+	"time"
 )
 
-//func Process(in chan string) chan string: Returns a channel with alteredstring
-func Process(in chan string) chan string {
-	var outString string
-	var out chan string = make(chan string)
-	go func() {
-		inString, ok := <-in
-		for ok {
-			outString = AlterString(inString)
-			out <- outString
-			inString, ok = <-in
-		}
-		defer close(out)
-	}()
-	return out
+var wg sync.WaitGroup
 
+func worker(id int, jobs <-chan string) {
+	var spawned bool
+	defer wg.Done()
+	for j := range jobs {
+		if spawned != true {
+			fmt.Printf("worker:%d spawning\n", id)
+		}
+		spawned = true
+		l, _ := time.ParseDuration(j + "s")
+		fmt.Printf("worker:%d sleep:%s\n", id, j)
+		time.Sleep(l)
+	}
+	if spawned == true {
+		fmt.Printf("worker:%d stopping\n", id)
+	}
 }
 
-//func AlterString(inStr string) string : Returns a string with parantheses
-func AlterString(inStr string) string {
-	b := strings.Builder{}
-	b.Grow(len(inStr) + 2)
-	b.WriteByte('(')
-	b.WriteString(inStr)
-	b.WriteByte(')')
-	return b.String()
+func Run(num int) {
+
+	jobs := make(chan string, 256)
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		txt := string(scanner.Bytes())
+		jobs <- txt
+	}
+	for k := 1; k <= num; k++ {
+		wg.Add(1)
+		go worker(k, jobs)
+		time.Sleep(4 * time.Millisecond)
+	}
+
+	close(jobs)
+	wg.Wait()
 }
