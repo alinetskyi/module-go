@@ -28,19 +28,19 @@ func worker(id int, jobs <-chan string) {
 }
 
 func Run(num int) {
-
 	jobs := make(chan string, 256)
 	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Split(bufio.ScanLines)
+	var k int = 1
 	for scanner.Scan() {
-		txt := string(scanner.Bytes())
+		if k <= num {
+			wg.Add(1)
+			go worker(k, jobs)
+			k++
+		}
+		txt := scanner.Text()
 		jobs <- txt
 	}
-	for k := 1; k <= num; k++ {
-		wg.Add(1)
-		go worker(k, jobs)
-		time.Sleep(4 * time.Millisecond)
-	}
-
 	close(jobs)
 	wg.Wait()
 }
